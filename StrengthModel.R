@@ -5,30 +5,36 @@ library(caret)
 library(ggplot2)
 
 # 1. Load Dataset
-df <- fread("Data/strengthMetrics.csv")  # Update file path if needed
+df <- fread("Data/strengthMetrics.csv")  
 
-# 2. Select Relevant Features
-selected_features <- c("pitch_speed_mph",
-                       "jump_height_(imp-mom)_[cm]_mean_cmj",
-                       "peak_power_[w]_mean_cmj",
-                       "rsi-modified_[m/s]_mean_cmj",                                
-                       "concentric_peak_force_[n]_mean_cmj",                         
-                       "jump_height_(imp-mom)_[cm]_mean_sj",                         
-                       "peak_power_[w]_mean_sj",                                     
-                       "peak_vertical_force_[n]_max_imtp",                           
-                       "force_at_100ms_[n]_max_imtp",                                
-                       "force_at_150ms_[n]_max_imtp",                                
-                       "force_at_200ms_[n]_max_imtp",                                
-                       "body_weight_[lbs]"                  
-)
+df <- df %>%
+  rename(
+    pitch_speed = pitch_speed_mph,
+    cmj_jump_height = `jump_height_(imp-mom)_[cm]_mean_cmj`,
+    cmj_peak_power  = `peak_power_[w]_mean_cmj`,
+    cmj_rsi         = `rsi-modified_[m/s]_mean_cmj`,
+    sj_jump_height  = `jump_height_(imp-mom)_[cm]_mean_sj`,
+    sj_peak_power   = `peak_power_[w]_mean_sj`,
+    imtp_net_force = `net_peak_vertical_force_[n]_max_imtp`,
+    body_weight     = `body_weight_[lbs]`
+  ) %>%
+  select(
+    pitch_speed,
+    cmj_jump_height,
+    cmj_peak_power,
+    cmj_rsi,
+    sj_jump_height,
+    sj_peak_power,
+    imtp_net_force,
+    body_weight
+  )
 
 # 3. Filter Data (Remove Missing Values & Exclude Pitch Speeds < 70 mph)
-df <- df[, ..selected_features]
-df <- df[complete.cases(df) & pitch_speed_mph >= 60]
+df <- df[complete.cases(df) & pitch_speed >= 60]
 
 # 4. Split Data into Features (X) and Target (y)
-X <- df[, !"pitch_speed_mph", with = FALSE]  # Remove target variable
-y <- df$pitch_speed_mph  # Target variable
+X <- df[, !"pitch_speed", with = FALSE]  # Remove target variable
+y <- df$pitch_speed  # Target variable
 
 # 5. Convert Data to Matrix (Required for XGBoost)
 X_matrix <- as.matrix(X)
