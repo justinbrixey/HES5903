@@ -182,7 +182,7 @@ ui <- page_navbar(
     base_font  = font_google("Inter Tight")
   ),
   header = tagList(
-    tags$style("h3 {font-weight:800; font-size:1.2em; margin-bottom:25px;}"),
+    tags$style("h3 {font-weight:800; font-size:1.2em; margin-bottom:10px;}"),
     tags$style("h4 {font-weight:300; font-size:1.1em;}")
   ),
   
@@ -242,7 +242,7 @@ ui <- page_navbar(
                        style = "background: #F0EBC4; padding: 10px; border-radius: 8px;",
                        div(style = "text-align: center;",
                            fluidRow(
-                             div(style = "display: inline-block; width: 45%; margin: 10px;",
+                             div(style = "display: inline-block; width: 45%; margin: 10px; color: black;",
                                  selectizeInput("comparisonPlayingLevels", "Compare by Playing Level:",
                                                 choices = NULL, multiple = TRUE)
                              ),
