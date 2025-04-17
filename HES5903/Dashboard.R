@@ -169,15 +169,15 @@ create_chart <- function(metric_data, value, metric_name, selected_athlete, valu
 
 # ---------- UI Section ----------
 ui <- page_navbar(
-  title = "HES 5903: Baseball Strength Assessment Dashboard",
+  title = "Baseball Strength Assessment Dashboard",
   theme = bs_theme(
     version = 5,
     bootswatch = "lux",
     base_font = font_google("Inter Tight")
   ),
   header = tagList(
-    tags$style("h3 {font-family: 'Inter Tight'; font-weight:600; font-size:1.9em; line-height: 25px;}"),
-    tags$style("h4 {font-family: 'Inter Tight'; font-weight:300; font-size:1.5em; line-height: 1px;}")
+    tags$style("h3 {font-family: 'Inter Tight'; font-weight:800; font-size:1.2em; line-height: 25px; margin-bottom: 25px;}"),
+    tags$style("h4 {font-family: 'Inter Tight'; font-weight:300; font-size:1.1em; line-height: 1px;}")
   ),
   nav_panel("Athlete Profile",
             fluidRow(
@@ -196,48 +196,29 @@ ui <- page_navbar(
                        ),
                        br(),
                        h4("Position:", style = "color: white;"),
-                       br(),
                        tags$h3(style = "color: white;", textOutput("athletePos", container = span)),
-                       br(),
-                       h4("Playing Level:", style = "color: white;"),
-                       br(),
+                       h4("Level:", style = "color: white;"),
                        tags$h3(style = "color: white;", textOutput("athleteLevel", container = span)),
-                       br(),
                        h4("Body Weight:", style = "color: white;"),
-                       br(),
                        tags$h3(style = "color: white;", textOutput("athleteBW", container = span))
                      )
               ),
               # In column 3 we show some CMJ metric charts.
-              column(3,
+              column(4,
                      div(style = "text-align: center;",
                          h3("Performance Metrics"),
-                         br(),
-                         br(),
                          h4("Recorded Velocity"),
-                         br(),
-                         br(),
-                         br(),
+                         tags$h3(style = "color: #841617;", textOutput("athleteVeloR", container = span)),
                          h4("Predicted Velocity"),
-                         br(),
-                         br(),
-                         br(),
+                         tags$h3(style = "color: #841617;", textOutput("athleteVeloP", container = span)),
                          h4("Absolute Power"),
-                         br(),
-                         br(),
-                         br(),
+                         tags$h3(style = "color: #841617;", textOutput("athleteIMTP", container = span)),
                          h4("Ballistic Power"),
-                         br(),
-                         br(),
-                         br(),
+                         tags$h3(style = "color: #841617;", textOutput("athleteCMJ", container = span)),
                          h4("Concentric Power"),
-                         br(),
-                         br(),
-                         br(),
+                         tags$h3(style = "color: #841617;", textOutput("athleteSJ", container = span)),
                          plotOutput("jumpHeightChart", height = "90px"),
-                         br(),
                          plotOutput("mrsiChart", height = "90px"),
-                         br(),
                          plotOutput("relPowerChart", height = "90px")
                      )
               ),
@@ -245,11 +226,11 @@ ui <- page_navbar(
               column(6,
                      div(style = "text-align: center;",
                          fluidRow(
-                           div(style = "display: inline-block; width: 60%; margin: 10px;",
+                           div(style = "display: inline-block; width: 45%; margin: 10px;",
                                selectizeInput("comparisonPlayingLevels", "Compare by Playing Level:",
                                               choices = NULL, multiple = TRUE)
                            ),
-                           div(style = "display: inline-block; width: 30%; margin: 10px;",
+                           div(style = "display: inline-block; width: 45%; margin: 10px;",
                                selectizeInput("comparisonSpeedGroups", "Compare by Speed Group:",
                                               choices = NULL, multiple = TRUE)
                            )
@@ -276,7 +257,7 @@ server <- function(input, output, session) {
   # Render the athlete headshot.
   output$headshot <- renderImage({
     list(src = paste0("Data/Recruit.jpg"),
-         height = "350")
+         height = "250")
   }, deleteFile = FALSE)
   
   output$athletePos <- renderText({
@@ -292,6 +273,47 @@ server <- function(input, output, session) {
   output$athleteBW <- renderText({
     req(selected_player())
     paste(round(selected_player()$body_weight_.lbs., 1), "lbs")
+  })
+  
+  output$athleteVeloR <- renderText({
+    req(selected_player())
+    player <- selected_player()
+    
+    if (player$player_type == "Pitcher") {
+      paste(round(player$pitch_speed_mph, 1), "mph")
+    } else if (player$player_type == "Hitter") {
+      paste(round(player$bat_speed_mph, 1), "mph")
+    } else {
+      "N/A"
+    }
+  })
+  
+  output$athleteVeloP <- renderText({
+    req(selected_player())
+    player <- selected_player()
+    
+    if (player$player_type == "Pitcher") {
+      paste(round(player$pitch_speed_mph, 1), "mph")
+    } else if (player$player_type == "Hitter") {
+      paste(round(player$bat_speed_mph, 1), "mph")
+    } else {
+      "N/A"
+    }
+  })
+  
+  output$athleteIMTP <- renderText({
+    req(selected_player())
+    paste(round(selected_player()$net_peak_vertical_force_.n._max_imtp, 1), "newtons")
+  })
+  
+  output$athleteCMJ <- renderText({
+    req(selected_player())
+    paste(round(selected_player()$peak_power_.w._mean_cmj, 1), "watts")
+  })
+  
+  output$athleteSJ <- renderText({
+    req(selected_player())
+    paste(round(selected_player()$peak_power_.w._mean_sj, 1), "watts")
   })
   
   # Update the choices for playing level comparisons.
@@ -419,13 +441,14 @@ server <- function(input, output, session) {
       title = final_title
     )
     par(op)
-  } , width = 800, height = 700)
+  } , width = 600, height = 500)
   
   # ----------------- CMJ Metric Chart Outputs ----------------- #
   
   output$jumpHeightChart <- renderPlot({
     req(selected_player())
-    jump_height <- selected_player()[["jump_height_.imp.mom._.cm._mean_cmj"]]
+    jump_height_cm <- selected_player()[["jump_height_.imp.mom._.cm._mean_cmj"]]
+    jump_height <- round((jump_height_cm * 0.393701), 1)
     
     # Choose normative data based on player type.
     normative_data <- if(selected_player()[["player_type"]] == "Pitcher")
@@ -439,8 +462,8 @@ server <- function(input, output, session) {
         Range_High = ifelse(is.na(Range_High), Range_Low, Range_High)
       )
     
-    chart <- create_chart(metric_data, jump_height, "Jump Height",
-                          selected_player()$display_name, jump_height, "cm")
+    chart <- create_chart(metric_data, jump_height_cm, "Jump Height",
+                          selected_player()$display_name, jump_height, "Inches")
     print(chart)
   })
   
