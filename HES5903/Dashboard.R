@@ -31,6 +31,12 @@ data <- data %>%
 data$speed <- ifelse(!is.na(data$pitch_speed_mph) & data$pitch_speed_mph != "",
                      data$pitch_speed_mph, data$bat_speed_mph)
 
+data <- data %>%
+  mutate(
+    EUR = `peak_power_.w._mean_cmj`/`peak_power_.w._mean_sj`,
+    DSI = `concentric_peak_force_.n._mean_cmj`/`peak_vertical_force_.n._max_imtp`
+  )
+
 # Define the key KPI columns.
 kpi_cols <- c("speed",
               "peak_power_.w._mean_cmj",
@@ -145,7 +151,7 @@ create_chart <- function(metric_data, value, metric_name, selected_athlete, valu
                                  "Moderate" = "orange1",
                                  "Proficient" = "#2ECC71",
                                  "Elite" = "#7DF9FF",
-                                 "#fff" = "#fff")) +
+                                 "white" = "white")) +
     labs(
       title = bquote(bold(.(metric_name)) ~ "-" ~ .(value2) ~ .(unit)),
       x = "",
@@ -178,7 +184,6 @@ ui <- page_navbar(
     bootswatch = "cyborg",
     primary    = "#841617",
     secondary = "#323232",
-    white      = "#ffffff",
     base_font  = font_google("Inter Tight")
   ),
   header = tagList(
@@ -218,16 +223,16 @@ ui <- page_navbar(
                      div(
                        style = "background: #F0EBC4; padding: 10px; border-radius: 8px;",
                        div(style = "text-align: center;",
-                           h3("Performance Metrics", style = "color: black;"),
-                           h4("Recorded Velocity", style = "color: black;"),
+                           h3("Performance Metrics", style = "color: #323232;"),
+                           h4("Recorded Velocity", style = "color: #323232;"),
                            tags$h3(style = "color: #841617;", textOutput("athleteVeloR", container = span)),
-                           h4("Predicted Velocity", style = "color: black;"),
+                           h4("Predicted Velocity", style = "color: #323232;"),
                            tags$h3(style = "color: #841617;", textOutput("athleteVeloP", container = span)),
-                           h4("Absolute Power", style = "color: black;"),
+                           h4("Absolute Power", style = "color: #323232;"),
                            tags$h3(style = "color: #841617;", textOutput("athleteIMTP", container = span)),
-                           h4("Ballistic Power", style = "color: black;"),
+                           h4("Ballistic Power", style = "color: #323232;"),
                            tags$h3(style = "color: #841617;", textOutput("athleteCMJ", container = span)),
-                           h4("Concentric Power", style = "color: black;"),
+                           h4("Concentric Power", style = "color: #323232;"),
                            tags$h3(style = "color: #841617;", textOutput("athleteSJ", container = span)),
                            plotOutput("jumpHeightChart", height = "90px"),
                            plotOutput("mrsiChart",       height = "90px"),
@@ -242,11 +247,11 @@ ui <- page_navbar(
                        style = "background: #F0EBC4; padding: 10px; border-radius: 8px;",
                        div(style = "text-align: center;",
                            fluidRow(
-                             div(style = "display: inline-block; width: 45%; margin: 10px; color: black;",
+                             div(style = "display: inline-block; width: 45%; margin: 10px; color: #323232;",
                                  selectizeInput("comparisonPlayingLevels", "Compare by Playing Level:",
                                                 choices = NULL, multiple = TRUE)
                              ),
-                             div(style = "display: inline-block; width: 45%; margin: 10px;",
+                             div(style = "display: inline-block; width: 45%; margin: 10px; color: #323232",
                                  selectizeInput("comparisonSpeedGroups", "Compare by Speed Group:",
                                                 choices = NULL, multiple = TRUE)
                              )
@@ -264,10 +269,10 @@ ui <- page_navbar(
             # inputs row
             fluidRow(
               column(4,
-                     div(style = "background: #F0EBC4; padding: 10px; border-radius: 8px;",
+                     div(style = "background: #F0EBC4; padding: 10px; border-radius: 8px; color: #323232",
                          selectInput(
                            inputId = "testSelect",
-                           label   = "Test to Showcase:",
+                           label   = "Test Type:",
                            choices = c(
                              "Countermovement Jump"     = "cmj",
                              "Squat Jump"               = "sj",
@@ -279,10 +284,10 @@ ui <- page_navbar(
                      )
               ),
               column(4,
-                     div(style = "background: #F0EBC4; padding: 10px; border-radius: 8px;",
+                     div(style = "background: #F0EBC4; padding: 10px; border-radius: 8px; color: #323232",
                          selectInput(
                            inputId = "PositionFilter",
-                           label   = "Filter by Position:",
+                           label   = "Position:",
                            choices = sort(unique(data$player_type)),
                            selected = unique(data$player_type),
                            multiple = TRUE,
@@ -291,10 +296,10 @@ ui <- page_navbar(
                      )
               ),
               column(4,
-                     div(style = "background: #F0EBC4; padding: 10px; border-radius: 8px;",
+                     div(style = "background: #F0EBC4; padding: 10px; border-radius: 8px; color: #323232",
                          selectInput(
                            inputId = "levelFilter",
-                           label   = "Filter by Playing Level:",
+                           label   = "Playing Level:",
                            choices = sort(unique(data$playing_level)),
                            selected = unique(data$playing_level),
                            multiple = TRUE,
@@ -307,7 +312,7 @@ ui <- page_navbar(
             # table row
             fluidRow(
               column(12,
-                     div(style = "background: #F0EBC4; padding: 10px; border-radius: 8px;",
+                     div(style = "background: #841617; padding: 10px; border-radius: 8px;",
                          gt_output("teamTable")
                      )
               )
