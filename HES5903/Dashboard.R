@@ -11,7 +11,6 @@ library(gt)
 data <- read.csv("Data/strengthMetrics.csv", stringsAsFactors = FALSE)
 data$UniqueID <- 1:nrow(data)
 
-# Determine the player type based on pitch and bat speed.
 data <- data %>%
   mutate(player_type = ifelse(!is.na(pitch_speed_mph) & pitch_speed_mph != "" &
                                 (is.na(bat_speed_mph) | bat_speed_mph == ""),
@@ -21,13 +20,11 @@ data <- data %>%
                                      "Hitter",
                                      NA)))
 
-# Create a display name (e.g., "Pitcher 1", "Hitter 2")
 data <- data %>%
   group_by(player_type) %>%
   mutate(display_name = ifelse(!is.na(player_type), paste(player_type, row_number()), NA)) %>%
   ungroup()
 
-# Create a combined "speed" metric.
 data$speed <- ifelse(!is.na(data$pitch_speed_mph) & data$pitch_speed_mph != "",
                      data$pitch_speed_mph, data$bat_speed_mph)
 
@@ -37,7 +34,6 @@ data <- data %>%
     DSI = `concentric_peak_force_.n._mean_cmj`/`peak_vertical_force_.n._max_imtp`
   )
 
-# Define the key KPI columns.
 kpi_cols <- c("speed",
               "peak_power_.w._mean_cmj",
               "peak_power_.w._mean_sj",
@@ -45,18 +41,14 @@ kpi_cols <- c("speed",
               "best_rsi_.jump_height.contact_time._.m.s._mean_ht",
               "body_weight_.lbs.")
 
-# Normalize each KPI on a 0–100 scale based on their percentile rank.
 data <- data %>%
   mutate(across(all_of(kpi_cols), ~ percent_rank(.) * 100, .names = "norm_{.col}"))
 
-# For selection, sample 10 athletes per group ("Pitcher" and "Hitter")
 athlete_choices <- data %>%
   filter(player_type %in% c("Pitcher", "Hitter")) %>%
   group_by(player_type) %>%
   sample_n(10) %>%
   ungroup()
-
-# --- The “Don’t-Change” Code for Normative Data and Chart Creation --- #
 
 position_normative_data <- data.frame(
   Metric = c("Jump Height", "Jump Height", "Jump Height", "Jump Height",
@@ -95,7 +87,6 @@ pitcher_normative_data <- data.frame(
 )
 
 create_chart <- function(metric_data, value, metric_name, selected_athlete, value2, unit) {
-  # Calculate total width and define sections.
   overall_min <- min(metric_data$Range_Low)
   overall_max <- max(metric_data$Range_High)
   total_width <- overall_max - overall_min
@@ -174,7 +165,6 @@ create_chart <- function(metric_data, value, metric_name, selected_athlete, valu
   print(chart)
 }
 
-# --- End of “Don’t-Change” Code --- #
 
 # ---------- UI Section ----------
 ui <- page_navbar(
@@ -194,7 +184,6 @@ ui <- page_navbar(
   # -------- Athlete Profile --------
   nav_panel("Athlete Profile",
             fluidRow(
-              ## Column 1 (player selector + info)
               column(2,
                        div(
                          style = "background: #841617; color: white; padding: 20px;
@@ -217,17 +206,17 @@ ui <- page_navbar(
                          tags$h3(style = "color: white;", textOutput("athleteBW",     container = span))
                        )
               ),
-              
-              ## Column 2 (charts)
               column(4,
                      div(
                        style = "background: #F0EBC4; padding: 10px; border-radius: 8px;",
                        div(style = "text-align: center;",
                            h3("Performance Metrics", style = "color: #323232;"),
-                           h4("Recorded Velocity", style = "color: #323232;"),
-                           tags$h3(style = "color: #841617;", textOutput("athleteVeloR", container = span)),
-                           h4("Predicted Velocity", style = "color: #323232;"),
-                           tags$h3(style = "color: #841617;", textOutput("athleteVeloP", container = span)),
+                           div(
+                             style = "background: #323232; padding: 7px; border-radius: 10px;",
+                           h4("Recorded Velocity", style = "color: #F0EBC4;"),
+                           tags$h3(style = "color: #F0EBC4;", textOutput("athleteVeloR", container = span)),
+                           h4("Predicted Velocity", style = "color: #F0EBC4;"),
+                           tags$h3(style = "color: #F0EBC4;", textOutput("athleteVeloP", container = span))),
                            h4("Absolute Power", style = "color: #323232;"),
                            tags$h3(style = "color: #841617;", textOutput("athleteIMTP", container = span)),
                            h4("Ballistic Power", style = "color: #323232;"),
@@ -240,8 +229,6 @@ ui <- page_navbar(
                        )
                      )
               ),
-              
-              ## Column 3 (radar + filters)
               column(6,
                      div(
                        style = "background: #F0EBC4; padding: 10px; border-radius: 8px;",
@@ -265,8 +252,6 @@ ui <- page_navbar(
   
   # -------- Team Report --------
   nav_panel("Team Report",
-            
-            # inputs row
             fluidRow(
               column(4,
                      div(style = "background: #F0EBC4; padding: 10px; border-radius: 8px; color: #323232",
@@ -308,8 +293,6 @@ ui <- page_navbar(
                      )
               )
             ),
-            
-            # table row
             fluidRow(
               column(12,
                      div(style = "background: #841617; padding: 10px; border-radius: 8px;",
@@ -324,14 +307,12 @@ ui <- page_navbar(
 
 # ---------- Server Section ----------
 server <- function(input, output, session) {
-  
-  # Reactive for the selected athlete.
+
   selected_player <- reactive({
     req(input$athleteName)
     data %>% filter(display_name == input$athleteName)
   })
-  
-  # Render the athlete headshot.
+
   output$headshot <- renderImage({
     list(src = paste0("Data/Recruit.jpg"),
          height = "250")
@@ -393,14 +374,12 @@ server <- function(input, output, session) {
     paste(round(selected_player()$peak_power_.w._mean_sj, 1), "watts")
   })
   
-  # Update the choices for playing level comparisons.
   observe({
     updateSelectizeInput(session, "comparisonPlayingLevels",
                          choices = sort(unique(data$playing_level)),
                          server = TRUE)
   })
   
-  # Update the choices for speed group comparisons based on the main athlete's speed type.
   observe({
     req(selected_player())
     athlete <- selected_player()[1, ]
@@ -414,8 +393,7 @@ server <- function(input, output, session) {
                            server = TRUE)
     }
   })
-  
-  # Reactive for data filtered by a given playing level (returns a list of averages)
+
   playing_level_avg <- reactive({
     req(input$comparisonPlayingLevels)
     norm_cols <- paste0("norm_", kpi_cols)
@@ -427,12 +405,10 @@ server <- function(input, output, session) {
     names(averages) <- input$comparisonPlayingLevels
     averages
   })
-  
-  # Reactive for data filtered by a given speed group (returns a list of averages)
+
   speed_group_avg <- reactive({
     req(input$comparisonSpeedGroups)
     norm_cols <- paste0("norm_", kpi_cols)
-    # Determine which speed group column to use based on the selected athlete.
     athlete <- selected_player()[1, ]
     if (!is.na(athlete$pitch_speed_mph) && athlete$pitch_speed_mph != "") {
       group_col <- "pitch_speed_mph_group"
@@ -448,20 +424,16 @@ server <- function(input, output, session) {
     averages
   })
   
-  # Radar plot for overall normalized KPI values with comparisons.
   output$radarPlot <- renderPlot({
     req(selected_player())
     norm_cols <- paste0("norm_", kpi_cols)
     
-    # Main athlete's normalized KPI vector.
     athlete_values <- selected_player()
     main_norm <- as.numeric(athlete_values %>% select(all_of(norm_cols)))
     
-    # Initialize series matrix with the main athlete.
     series_matrix <- main_norm
     series_labels <- c(athlete_values$display_name)
     
-    # Append playing level averages if provided.
     if (!is.null(input$comparisonPlayingLevels) && length(input$comparisonPlayingLevels) > 0) {
       pl_avgs <- playing_level_avg()
       for (lvl in names(pl_avgs)) {
@@ -470,7 +442,6 @@ server <- function(input, output, session) {
       }
     }
     
-    # Append speed group averages if provided.
     if (!is.null(input$comparisonSpeedGroups) && length(input$comparisonSpeedGroups) > 0) {
       sg_avgs <- speed_group_avg()
       for (grp in names(sg_avgs)) {
@@ -479,16 +450,13 @@ server <- function(input, output, session) {
       }
     }
     
-    # Construct full radar data matrix with fixed maximum and minimum rows.
     max_vals <- rep(100, length(norm_cols))
     min_vals <- rep(0, length(norm_cols))
     radar_data <- rbind(max_vals, min_vals, series_matrix)
     rownames(radar_data) <- c("Max", "Min", series_labels)
     radar_data <- as.data.frame(radar_data)
     
-    # Create a color vector for the series (first series is main athlete, others are comparisons).
-    num_series <- nrow(radar_data) - 2  # Exclude max and min rows.
-    # For simplicity, main athlete in blue and others in a generated palette.
+    num_series <- nrow(radar_data) - 2  
     series_colors <- if(num_series == 1) {
       "red4"
     } else {
@@ -496,7 +464,6 @@ server <- function(input, output, session) {
     }
     pfcolors <- sapply(series_colors, function(col) alpha(col, 0.7))
     
-    # Title: list main athlete and names of comparisons.
     compare_title <- if(length(series_labels) > 1)
       paste("vs", paste(series_labels[-1], collapse = ", ")) else ""
     final_title <- paste("IQR Chart for", athlete_values$display_name, compare_title)
@@ -521,14 +488,11 @@ server <- function(input, output, session) {
     par(old_par)
   } , width = 600, height = 500)
   
-  # ----------------- CMJ Metric Chart Outputs ----------------- #
-  
   output$jumpHeightChart <- renderPlot({
     req(selected_player())
     jump_height_cm <- selected_player()[["jump_height_.imp.mom._.cm._mean_cmj"]]
     jump_height <- round((jump_height_cm * 0.393701), 1)
     
-    # Choose normative data based on player type.
     normative_data <- if(selected_player()[["player_type"]] == "Pitcher")
       pitcher_normative_data else position_normative_data
     
@@ -585,7 +549,6 @@ server <- function(input, output, session) {
     print(chart)
   })
   
-  # Team Report logic
   filtered_team_data <- reactive({
     req(input$levelFilter)
     data %>% 
@@ -613,5 +576,5 @@ server <- function(input, output, session) {
   
 }
 
-# ---------- Run the Application ----------
+# ---------- Run ----------
 shinyApp(ui = ui, server = server)

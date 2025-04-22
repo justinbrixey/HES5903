@@ -1,87 +1,118 @@
-#Strength Model
+# Strength Model
 library(data.table)
 library(xgboost)
 library(caret)
 library(ggplot2)
+library(dplyr)
 
 # 1. Load Dataset
 df <- fread("Data/strengthMetrics.csv")  
 
+# 2. Rename Columns
 df <- df %>%
   rename(
-    pitch_speed = pitch_speed_mph,
-    cmj_jump_height = `jump_height_(imp-mom)_[cm]_mean_cmj`,
-    cmj_peak_power  = `peak_power_[w]_mean_cmj`,
-    cmj_rsi         = `rsi-modified_[m/s]_mean_cmj`,
-    sj_jump_height  = `jump_height_(imp-mom)_[cm]_mean_sj`,
-    sj_peak_power   = `peak_power_[w]_mean_sj`,
-    imtp_net_force = `net_peak_vertical_force_[n]_max_imtp`,
-    body_weight     = `body_weight_[lbs]`
-  ) %>%
-  select(
-    pitch_speed,
-    cmj_jump_height,
-    cmj_peak_power,
-    cmj_rsi,
-    sj_jump_height,
-    sj_peak_power,
-    imtp_net_force,
-    body_weight
+    # pitch_speed = "pitch_speed_mph",
+    pitch_speed = "bat_speed_mph",
+    cmj_jump_height = "jump_height_(imp-mom)_[cm]_mean_cmj",
+    cmj_peak_power  = "peak_power_[w]_mean_cmj",
+    cmj_rsi         = "rsi-modified_[m/s]_mean_cmj",
+    cmj_concentric_force = "concentric_peak_force_[n]_mean_cmj",
+    cmj_eccentric_force = "eccentric_peak_force_[n]_mean_cmj",
+    sj_jump_height  = "jump_height_(imp-mom)_[cm]_mean_sj",
+    sj_peak_power   = "peak_power_[w]_mean_sj",
+    imtp_vertical_force = "peak_vertical_force_[n]_max_imtp",
+    imtp_net_force = "net_peak_vertical_force_[n]_max_imtp",
+    imtp_100ms = "force_at_100ms_[n]_max_imtp",
+    imtp_150ms = "force_at_150ms_[n]_max_imtp",
+    imtp_200ms = "force_at_200ms_[n]_max_imtp",
+    ht_jump_height = "best_jump_height_(flight_time)_[cm]_mean_ht",
+    ht_rsi = "best_rsi_(jump_height/contact_time)_[m/s]_mean_ht",
+    body_weight     = "body_weight_[lbs]"
   )
 
-# 3. Filter Data (Remove Missing Values & Exclude Pitch Speeds < 70 mph)
-df <- df[complete.cases(df) & pitch_speed >= 60]
+# 3. Keep only relevant columns
+top_features <- c(
+  "sj_peak_power", "cmj_peak_power", "cmj_eccentric_force", "cmj_concentric_force",
+  "ht_jump_height", "sj_jump_height", "ht_rsi", "body_weight",
+  "imtp_net_force", "imtp_200ms"
+)
+df <- df %>% select(pitch_speed, all_of(top_features))
 
-# 4. Split Data into Features (X) and Target (y)
-X <- df[, !"pitch_speed", with = FALSE]  # Remove target variable
-y <- df$pitch_speed  # Target variable
+# 4. Clean data
+df <- df[complete.cases(df) & pitch_speed >= 50]
 
-# 5. Convert Data to Matrix (Required for XGBoost)
+# 5. IQR Outlier Filtering (threshold = 2.5)
+filter_iqr <- function(data, cols, thresh = 2.5) {
+  for (col in cols) {
+    Q1 <- quantile(data[[col]], 0.25, na.rm = TRUE)
+    Q3 <- quantile(data[[col]], 0.75, na.rm = TRUE)
+    IQR <- Q3 - Q1
+    lower <- Q1 - thresh * IQR
+    upper <- Q3 + thresh * IQR
+    data <- data %>% filter(.data[[col]] >= lower & .data[[col]] <= upper)
+  }
+  return(data)
+}
+df <- filter_iqr(df, top_features, thresh = 2.5)
+
+# 6. Feature/Target Split
+X <- df[, !"pitch_speed", with = FALSE]
+y <- df$pitch_speed
 X_matrix <- as.matrix(X)
 
-# 6. Split into Training (70%) and Testing (30%) Sets
-set.seed(42)  # For reproducibility
+# 7. Train/Test Split
+set.seed(42)
 train_index <- createDataPartition(y, p = 0.8, list = FALSE)
 X_train <- X_matrix[train_index, ]
 X_test <- X_matrix[-train_index, ]
 y_train <- y[train_index]
 y_test <- y[-train_index]
 
-# 7. Convert Data to XGBoost DMatrix Format
+# 8. Convert to DMatrix
 dtrain <- xgb.DMatrix(data = X_train, label = y_train)
 dtest <- xgb.DMatrix(data = X_test, label = y_test)
 
-# 8. Train XGBoost Model
+# 9. Cross-Validation for Optimal Rounds
 params <- list(
-  objective = "reg:squarederror",  # Regression task
-  booster = "gbtree",  # Use tree-based boosting
-  eta = 0.1,  # Learning rate
-  max_depth = 3,  # Depth of trees
-  nrounds = 250,  # Number of boosting rounds
-  eval_metric = "rmse"  # Evaluation metric
+  objective = "reg:squarederror",
+  eta = 0.01,
+  max_depth = 4,
+  subsample = 0.8,
+  colsample_bytree = 0.7,
+  gamma = 1,
+  eval_metric = "rmse"
 )
 
+cv <- xgb.cv(
+  params = params,
+  data = dtrain,
+  nrounds = 1000,
+  nfold = 5,
+  early_stopping_rounds = 25,
+  verbose = 0
+)
+best_nrounds <- cv$best_iteration
+
+# 10. Final Model Training
 xgb_model <- xgb.train(
-  params = params, 
-  data = dtrain, 
-  nrounds = 250, 
+  params = params,
+  data = dtrain,
+  nrounds = best_nrounds,
   watchlist = list(train = dtrain, test = dtest),
-  print_every_n = 10
+  print_every_n = 10,
+  early_stopping_rounds = 25
 )
 
-# 9. Make Predictions on Test Set
+# 11. Predict & Evaluate
 y_pred <- predict(xgb_model, newdata = dtest)
+r2 <- cor(y_test, y_pred)^2
+rmse <- sqrt(mean((y_test - y_pred)^2))
 
-# 10. Evaluate Model Performance
-r2 <- cor(y_test, y_pred)^2  # R-squared
-rmse <- sqrt(mean((y_test - y_pred)^2))  # Root Mean Squared Error
-
-# Print Results
 cat("XGBoost Model Performance:\n")
 cat("R-squared: ", round(r2, 3), "\n")
 cat("RMSE: ", round(rmse, 3), "mph\n")
 
-# 11. Plot Actual vs. Predicted Pitch Speed
+# 12. Plot Actual vs Predicted
 plot_data <- data.frame(Actual = y_test, Predicted = y_pred)
 ggplot(plot_data, aes(x = Actual, y = Predicted)) +
   geom_point(alpha = 0.7) +
@@ -91,9 +122,6 @@ ggplot(plot_data, aes(x = Actual, y = Predicted)) +
        y = "Predicted Pitch Speed (mph)") +
   theme_minimal()
 
-
-# Compute feature importance
+# 13. Feature Importance
 importance_matrix <- xgb.importance(feature_names = colnames(X_train), model = xgb_model)
-
-# Print top features
 print(importance_matrix)
