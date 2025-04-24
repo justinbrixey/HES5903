@@ -4,42 +4,30 @@ library(xgboost)
 library(caret)
 library(ggplot2)
 library(dplyr)
+library(tidyr)
 
-# 1. Load Dataset
-df <- fread("Data/strengthMetrics.csv")  
+df <- read.csv("Data/strengthMetrics.csv")  
 
-# 2. Rename Columns
-df <- df %>%
-  rename(
-    # pitch_speed = "pitch_speed_mph",
-    pitch_speed = "bat_speed_mph",
-    cmj_jump_height = "jump_height_(imp-mom)_[cm]_mean_cmj",
-    cmj_peak_power  = "peak_power_[w]_mean_cmj",
-    cmj_rsi         = "rsi-modified_[m/s]_mean_cmj",
-    cmj_concentric_force = "concentric_peak_force_[n]_mean_cmj",
-    cmj_eccentric_force = "eccentric_peak_force_[n]_mean_cmj",
-    sj_jump_height  = "jump_height_(imp-mom)_[cm]_mean_sj",
-    sj_peak_power   = "peak_power_[w]_mean_sj",
-    imtp_vertical_force = "peak_vertical_force_[n]_max_imtp",
-    imtp_net_force = "net_peak_vertical_force_[n]_max_imtp",
-    imtp_100ms = "force_at_100ms_[n]_max_imtp",
-    imtp_150ms = "force_at_150ms_[n]_max_imtp",
-    imtp_200ms = "force_at_200ms_[n]_max_imtp",
-    ht_jump_height = "best_jump_height_(flight_time)_[cm]_mean_ht",
-    ht_rsi = "best_rsi_(jump_height/contact_time)_[m/s]_mean_ht",
-    body_weight     = "body_weight_[lbs]"
-  )
+top_features <- c("net_peak_vertical_force_.n._max_imtp", 
+                  "body_weight_.lbs.",
+                  "best_rsi_.jump_height.contact_time._.m.s._mean_ht",
+                  "force_at_200ms_.n._max_imtp",
+                  "jump_height_.imp.mom._.cm._mean_sj",
+                  "peak_power_.w._mean_sj",
+                  "concentric_peak_force_.n._mean_cmj",
+                  "eccentric_peak_force_.n._mean_cmj",
+                  "jump_height_.imp.mom._.cm._mean_cmj",
+                  "peak_power_.w._mean_cmj"
+                  )
 
-# 3. Keep only relevant columns
-top_features <- c(
-  "sj_peak_power", "cmj_peak_power", "cmj_eccentric_force", "cmj_concentric_force",
-  "ht_jump_height", "sj_jump_height", "ht_rsi", "body_weight",
-  "imtp_net_force", "imtp_200ms"
-)
-df <- df %>% select(pitch_speed, all_of(top_features))
+#Replace all "pitch_speed_mph" to "bat_speed_mph" for hitters model
 
-# 4. Clean data
-df <- df[complete.cases(df) & pitch_speed >= 50]
+df <- df %>% 
+  select(pitch_speed_mph, all_of(top_features)) %>%
+  drop_na() %>%
+  filter(pitch_speed_mph >= 65)
+#If bat_speed_mph filter to greater than 50
+#If pitch_speed_mph filter to greater than 65
 
 # 5. IQR Outlier Filtering (threshold = 2.5)
 filter_iqr <- function(data, cols, thresh = 2.5) {
@@ -56,8 +44,8 @@ filter_iqr <- function(data, cols, thresh = 2.5) {
 df <- filter_iqr(df, top_features, thresh = 2.5)
 
 # 6. Feature/Target Split
-X <- df[, !"pitch_speed", with = FALSE]
-y <- df$pitch_speed
+X <- df %>% select(-pitch_speed_mph)
+y <- df$pitch_speed_mph
 X_matrix <- as.matrix(X)
 
 # 7. Train/Test Split
@@ -111,6 +99,8 @@ rmse <- sqrt(mean((y_test - y_pred)^2))
 cat("XGBoost Model Performance:\n")
 cat("R-squared: ", round(r2, 3), "\n")
 cat("RMSE: ", round(rmse, 3), "mph\n")
+
+saveRDS(xgb_model, file = "pitch_speed_model.rds")
 
 # 12. Plot Actual vs Predicted
 plot_data <- data.frame(Actual = y_test, Predicted = y_pred)

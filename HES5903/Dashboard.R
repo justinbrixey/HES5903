@@ -7,6 +7,7 @@ library(tidyr)
 library(ggplot2)
 library(gt)
 library(shinyWidgets)
+library(janitor)
 
 # ---------- Global Section ----------
 data <- read.csv("Data/strengthMetrics.csv", stringsAsFactors = FALSE)
@@ -88,6 +89,22 @@ pitcher_normative_data <- data.frame(
             "235-270.99", "271-289.49", "289.5-307.99", "308-355")
 )
 
+pitch_model <- readRDS("Models/pitch_speed_model.rds")
+bat_model   <- readRDS("Models/bat_speed_model.rds")
+
+top_features <- c(
+  "net_peak_vertical_force_.n._max_imtp",
+  "body_weight_.lbs.",
+  "best_rsi_.jump_height.contact_time._.m.s._mean_ht",
+  "force_at_200ms_.n._max_imtp",
+  "jump_height_.imp.mom._.cm._mean_sj",
+  "peak_power_.w._mean_sj",
+  "concentric_peak_force_.n._mean_cmj",
+  "eccentric_peak_force_.n._mean_cmj",
+  "jump_height_.imp.mom._.cm._mean_cmj",
+  "peak_power_.w._mean_cmj"
+)
+
 create_chart <- function(metric_data, value, metric_name, selected_athlete, value2, unit) {
   overall_min <- min(metric_data$Range_Low)
   overall_max <- max(metric_data$Range_High)
@@ -154,7 +171,7 @@ create_chart <- function(metric_data, value, metric_name, selected_athlete, valu
     theme(
       plot.background  = element_rect(fill = "#FDF9D8", color = NA),
       panel.background = element_rect(fill = "#FDF9D8", color = NA),
-      plot.title = element_text(hjust = 0.5, size = 20),
+      plot.title = element_text(hjust = 0.5, size = 17),
       axis.text.x = element_text(size = 15, face = "bold"),
       axis.ticks.y = element_blank(),
       axis.text.y = element_blank(),
@@ -211,41 +228,59 @@ ui <- page_navbar(
                      div(
                        style = "background: #FDF9D8; padding: 5px; border-radius: 8px;",
                        div(style = "text-align: center;",
+                           h3("Velocity Metrics", style = "color: #323232;"),
+                           fluidRow(
+                             column(1),
+                             column(5,
+                                    div(
+                                      style = "background: #323232; border-radius: 15px;",
+                                      h4("Recorded Velocity", style = "color: #FDF9D8;"),
+                                      tags$h3(style = "color: #FDF9D8;", textOutput("athleteVeloR")))),
+                             # column(2),
+                             column(5,
+                                    div(
+                                      style = "background: #841617; border-radius: 15px;",
+                                      h4("Predicted Velocity", style = "color: #FDF9D8;"),
+                                      tags$h3(style = "color: #FDF9D8;", textOutput("athleteVeloP")))),
+                             column(1)
+                           ),
+                           h4("Recommendation: ", textOutput("athleteRec", container = span), style = "color: #323232;")                       ),
+                     ),
+                     br(),
+                     div(
+                       style = "background: #FDF9D8; padding: 5px; border-radius: 8px;",
+                       div(style = "text-align: center;",
                            h3("Stength Metrics", style = "color: #323232;"),
-                           h4("Isometric Mid-Thigh Pull: Absolute Power", style = "color: #323232;"),
-                           tags$h3(style = "color: #841617;", textOutput("athleteIMTP")),
-                           h4("Countermovement Jump: Ballistic Power", style = "color: #323232;"),
-                           tags$h3(style = "color: #841617;", textOutput("athleteCMJ")),
-                           h4("Squat Jump: Concentric Power", style = "color: #323232;"),
-                           tags$h3(style = "color: #841617;", textOutput("athleteSJ")))
+                           fluidRow(
+                             column(6,
+                                    h4("Isometric Mid-Thigh Pull:", style = "color: #323232;"),
+                                    h4("Absolute Power", style = "color: #323232;"),
+                                    tags$h3(style = "color: #841617;", textOutput("athleteIMTP")),
+                                    h4("Repeated Hop Test:", style = "color: #323232;"),
+                                    h4("Reactivity", style = "color: #323232;"),
+                                    tags$h3(style = "color: #841617;", textOutput("athleteHop"))
+                                    ),
+                             column(6,
+                                    h4("Countermovement Jump:", style = "color: #323232;"),
+                                    h4("Ballistic Power", style = "color: #323232;"),
+                                    tags$h3(style = "color: #841617;", textOutput("athleteCMJ")),
+                                    h4("Squat Jump:", style = "color: #323232;"),
+                                    h4("Concentric Power", style = "color: #323232;"),
+                                    tags$h3(style = "color: #841617;", textOutput("athleteSJ")))
+                                    )
+                           )
                        ),
                      br(),
                      div(
                        style = "background: #FDF9D8; padding: 5px; border-radius: 8px;",
                        div(
                          style = "text-align: center;",
-                       h3("CMJ Rating", style = "color: #323232;"),
+                       h3("CMJ Ratings", style = "color: #323232;"),
                        plotOutput("jumpHeightChart", height = "90px"),
                        plotOutput("mrsiChart",       height = "90px"),
                        plotOutput("relPowerChart",   height = "90px")
                        )
                      ),
-                     br(),
-                     div(
-                       style = "background: #841617; padding: 5px; border-radius: 8px;",
-                       div(style = "text-align: center;",
-                           h3("Velocity Metrics", style = "color: #FDF9D8;"),
-                           fluidRow(
-                             column(6,
-                                    h4("Recorded Velocity", style = "color: #FDF9D8;"),
-                                    tags$h3(style = "color: #f0f0f0;", textOutput("athleteVeloR"))),
-                             column(6,
-                                    h4("Predicted Velocity", style = "color: #FDF9D8;"),
-                                    tags$h3(style = "color: #f0f0f0;", textOutput("athleteVeloP"))),
-                           ),
-                           h3("Recomendation: Not Available", style = "color: #FDF9D8")
-                       ),
-                     )
               ),
               column(6,
                      div(
@@ -368,22 +403,48 @@ server <- function(input, output, session) {
     }
   })
   
-  output$athleteVeloP <- renderText({
+  predictedVelo <- reactive({
     req(selected_player())
-    player <- selected_player()
+    player <- selected_player()[1, ]
     
-    if (player$player_type == "Pitcher") {
-      paste(round(player$pitch_speed_mph, 1), "mph")
-    } else if (player$player_type == "Hitter") {
-      paste(round(player$bat_speed_mph, 1), "mph")
+    feat_df  <- player[ , top_features, drop = FALSE ]
+    feat_mat <- as.matrix(feat_df)
+    
+    model <- if (player$player_type == "Pitcher") pitch_model else bat_model
+    
+    as.numeric(predict(model, newdata = feat_mat))
+  })
+  
+  output$athleteVeloP <- renderText({
+    mph <- round(predictedVelo(), 1)
+    paste0(mph, " mph")
+  })
+  
+  output$athleteRec <- renderText({
+    req(selected_player())
+    player <- selected_player()[1, ]
+    
+    actual <- if (player$player_type == "Pitcher") {
+      player$pitch_speed_mph
     } else {
-      "N/A"
+      player$bat_speed_mph
+    }
+    
+    if (actual > predictedVelo()) {
+      "Strength Focus Needed"
+    } else {
+      "Skill Specific Focus Needed"
     }
   })
   
   output$athleteIMTP <- renderText({
     req(selected_player())
     paste(round(selected_player()$net_peak_vertical_force_.n._max_imtp, 1), "newtons")
+  })
+  
+  output$athleteHop <- renderText({
+    req(selected_player())
+    paste(round(selected_player()$best_rsi_.jump_height.contact_time._.m.s._mean_ht, 1), "meter•seconds")
   })
   
   output$athleteCMJ <- renderText({
@@ -574,18 +635,25 @@ server <- function(input, output, session) {
   filtered_team_data <- reactive({
     req(input$levelFilter)
     data %>% 
-      filter(playing_level %in% input$levelFilter) %>% 
-      filter(player_type %in% input$PositionFilter)
+      filter(playing_level %in% input$levelFilter,
+             player_type    %in% input$PositionFilter) %>%
+      janitor::clean_names()  
   })
+  
   
   output$teamTable <- render_gt({
     req(input$testSelect)
+    df <- filtered_team_data()
     suffix <- input$testSelect
-    matches <- grep(paste0(suffix, "$"), colnames(data), value=TRUE)
-    cols    <- c("display_name","playing_level","body_weight_.lbs.", matches)
-    df      <- filtered_team_data()[, cols, drop=FALSE]
     
-    gt(df) %>%
+    # find the cleaned names that end with "_cmj", "_sj", or "_imtp"
+    matches <- grep(paste0("_", suffix, "$"), names(df), value = TRUE)
+    
+    # pick your columns (use the cleaned names)
+    cols <- c("display_name", "playing_level", "body_weight_lbs", matches)
+    df_sel <- df[, cols, drop = FALSE]
+    
+    gt(df_sel) %>%
       tab_header(
         title    = "Team Report",
         subtitle = switch(suffix,
@@ -593,8 +661,9 @@ server <- function(input, output, session) {
                           sj   = "Squat Jump Metrics",
                           imtp = "Isometric Mid Thigh Pull Metrics")
       ) %>%
-      fmt_number(columns=matches, decimals=1)
+      fmt_number(columns = matches, decimals = 1)
   })
+  
   
 }
 
