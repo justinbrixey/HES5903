@@ -230,19 +230,19 @@ ui <- page_navbar(
                        div(style = "text-align: center;",
                            h3("Velocity Metrics", style = "color: #323232;"),
                            fluidRow(
-                             column(1),
-                             column(5,
+                             # column(1),
+                             column(6,
                                     div(
                                       style = "background: #323232; border-radius: 15px;",
                                       h4("Recorded Velocity", style = "color: #FDF9D8;"),
                                       tags$h3(style = "color: #FDF9D8;", textOutput("athleteVeloR")))),
                              # column(2),
-                             column(5,
+                             column(6,
                                     div(
                                       style = "background: #841617; border-radius: 15px;",
                                       h4("Predicted Velocity", style = "color: #FDF9D8;"),
                                       tags$h3(style = "color: #FDF9D8;", textOutput("athleteVeloP")))),
-                             column(1)
+                             # column(1)
                            ),
                            h4("Recommendation: ", textOutput("athleteRec", container = span), style = "color: #323232;")                       ),
                      ),
@@ -253,18 +253,18 @@ ui <- page_navbar(
                            h3("Stength Metrics", style = "color: #323232;"),
                            fluidRow(
                              column(6,
-                                    h4("Isometric Mid-Thigh Pull:", style = "color: #323232;"),
+                                    h4("IMTP:", style = "color: #323232;"),
                                     h4("Absolute Power", style = "color: #323232;"),
                                     tags$h3(style = "color: #841617;", textOutput("athleteIMTP")),
-                                    h4("Repeated Hop Test:", style = "color: #323232;"),
+                                    h4("RHT:", style = "color: #323232;"),
                                     h4("Reactivity", style = "color: #323232;"),
                                     tags$h3(style = "color: #841617;", textOutput("athleteHop"))
                                     ),
                              column(6,
-                                    h4("Countermovement Jump:", style = "color: #323232;"),
+                                    h4("CMJ:", style = "color: #323232;"),
                                     h4("Ballistic Power", style = "color: #323232;"),
                                     tags$h3(style = "color: #841617;", textOutput("athleteCMJ")),
-                                    h4("Squat Jump:", style = "color: #323232;"),
+                                    h4("SJ:", style = "color: #323232;"),
                                     h4("Concentric Power", style = "color: #323232;"),
                                     tags$h3(style = "color: #841617;", textOutput("athleteSJ")))
                                     )
@@ -444,7 +444,7 @@ server <- function(input, output, session) {
   
   output$athleteHop <- renderText({
     req(selected_player())
-    paste(round(selected_player()$best_rsi_.jump_height.contact_time._.m.s._mean_ht, 1), "meter•seconds")
+    paste(round(selected_player()$best_rsi_.jump_height.contact_time._.m.s._mean_ht, 1), "m/s")
   })
   
   output$athleteCMJ <- renderText({
