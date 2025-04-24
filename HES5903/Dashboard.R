@@ -10,30 +10,38 @@ library(shinyWidgets)
 library(janitor)
 
 # ---------- Global Section ----------
-data <- read.csv("Data/strengthMetrics.csv", stringsAsFactors = FALSE)
-data$UniqueID <- 1:nrow(data)
 
-data <- data %>%
-  mutate(player_type = ifelse(!is.na(pitch_speed_mph) & pitch_speed_mph != "" &
-                                (is.na(bat_speed_mph) | bat_speed_mph == ""),
-                              "Pitcher",
-                              ifelse(!is.na(bat_speed_mph) & bat_speed_mph != "" &
-                                       (is.na(pitch_speed_mph) | pitch_speed_mph == ""),
-                                     "Hitter",
-                                     NA)))
-
-data <- data %>%
-  group_by(player_type) %>%
-  mutate(display_name = ifelse(!is.na(player_type), paste(player_type, row_number()), NA)) %>%
-  ungroup()
-
-data$speed <- ifelse(!is.na(data$pitch_speed_mph) & data$pitch_speed_mph != "",
-                     data$pitch_speed_mph, data$bat_speed_mph)
-
-data <- data %>%
+data <- read.csv("Data/strengthMetrics.csv", stringsAsFactors = FALSE) %>%
   mutate(
-    EUR = `peak_power_.w._mean_cmj`/`peak_power_.w._mean_sj`,
-    DSI = `concentric_peak_force_.n._mean_cmj`/`peak_vertical_force_.n._max_imtp`
+    UniqueID    = row_number(),
+    player_type = case_when(
+      !is.na(pitch_speed_mph) & (is.na(bat_speed_mph) | bat_speed_mph == "") ~ "Pitcher",
+      !is.na(bat_speed_mph)   & (is.na(pitch_speed_mph) | pitch_speed_mph == "") ~ "Hitter",
+      TRUE                                                                    ~ NA_character_
+    )
+  ) %>%
+  group_by(player_type) %>%
+  mutate(display_name = paste(player_type, row_number())) %>%
+  ungroup() 
+
+kpi_cols1 <- c("bat_speed_mph",
+              "pitch_speed_mph",
+              "peak_power_.w._mean_cmj",
+              "peak_power_.w._mean_sj",
+              "net_peak_vertical_force_.n._max_imtp",
+              "best_rsi_.jump_height.contact_time._.m.s._mean_ht",
+              "body_weight_.lbs.")
+
+data <- data %>%
+  mutate(across(all_of(kpi_cols1), ~ percent_rank(.) * 100, .names = "norm_{.col}"))
+
+data <- data %>%
+  drop_na(player_type) %>%
+  mutate(
+    speed = case_when(
+      player_type == "Pitcher" ~ norm_pitch_speed_mph,
+      player_type == "Hitter"  ~ norm_bat_speed_mph
+    )
   )
 
 kpi_cols <- c("speed",
@@ -43,15 +51,13 @@ kpi_cols <- c("speed",
               "best_rsi_.jump_height.contact_time._.m.s._mean_ht",
               "body_weight_.lbs.")
 
-data <- data %>%
-  mutate(across(all_of(kpi_cols), ~ percent_rank(.) * 100, .names = "norm_{.col}"))
-
 athlete_choices <- data %>%
   filter(player_type %in% c("Pitcher", "Hitter")) %>%
   filter(if_all(all_of(kpi_cols), ~ !is.na(.) & . != "")) %>%
   group_by(player_type) %>%
   sample_n(10) %>%
   ungroup()
+
 
 position_normative_data <- data.frame(
   Metric = c("Jump Height", "Jump Height", "Jump Height", "Jump Height",
@@ -477,7 +483,12 @@ server <- function(input, output, session) {
 
   playing_level_avg <- reactive({
     req(input$comparisonPlayingLevels)
-    norm_cols <- paste0("norm_", kpi_cols)
+    norm_cols <- c("speed",
+                   "norm_peak_power_.w._mean_cmj",
+                   "norm_peak_power_.w._mean_sj",
+                   "norm_net_peak_vertical_force_.n._max_imtp",
+                   "norm_best_rsi_.jump_height.contact_time._.m.s._mean_ht",
+                   "norm_body_weight_.lbs.")
     averages <- lapply(input$comparisonPlayingLevels, function(level) {
       df <- data %>% filter(playing_level == level)
       if(nrow(df) > 0) colMeans(df[, norm_cols], na.rm = TRUE)
@@ -489,7 +500,12 @@ server <- function(input, output, session) {
 
   speed_group_avg <- reactive({
     req(input$comparisonSpeedGroups)
-    norm_cols <- paste0("norm_", kpi_cols)
+    norm_cols <- c("speed",
+                   "norm_peak_power_.w._mean_cmj",
+                   "norm_peak_power_.w._mean_sj",
+                   "norm_net_peak_vertical_force_.n._max_imtp",
+                   "norm_best_rsi_.jump_height.contact_time._.m.s._mean_ht",
+                   "norm_body_weight_.lbs.")
     athlete <- selected_player()[1, ]
     if (!is.na(athlete$pitch_speed_mph) && athlete$pitch_speed_mph != "") {
       group_col <- "pitch_speed_mph_group"
@@ -507,7 +523,12 @@ server <- function(input, output, session) {
   
   output$radarPlot <- renderPlot({
     req(selected_player())
-    norm_cols <- paste0("norm_", kpi_cols)
+    norm_cols <- c("speed",
+                   "norm_peak_power_.w._mean_cmj",
+                   "norm_peak_power_.w._mean_sj",
+                   "norm_net_peak_vertical_force_.n._max_imtp",
+                   "norm_best_rsi_.jump_height.contact_time._.m.s._mean_ht",
+                   "norm_body_weight_.lbs.")
     
     athlete_values <- selected_player()
     main_norm <- as.numeric(athlete_values %>% select(all_of(norm_cols)))
