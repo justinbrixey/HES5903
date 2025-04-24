@@ -6,6 +6,7 @@ library(scales)
 library(tidyr)
 library(ggplot2)
 library(gt)
+library(shinyWidgets)
 
 # ---------- Global Section ----------
 data <- read.csv("Data/strengthMetrics.csv", stringsAsFactors = FALSE)
@@ -46,6 +47,7 @@ data <- data %>%
 
 athlete_choices <- data %>%
   filter(player_type %in% c("Pitcher", "Hitter")) %>%
+  filter(if_all(all_of(kpi_cols), ~ !is.na(.) & . != "")) %>%
   group_by(player_type) %>%
   sample_n(10) %>%
   ungroup()
@@ -150,8 +152,8 @@ create_chart <- function(metric_data, value, metric_name, selected_athlete, valu
     ) +
     theme_minimal() +
     theme(
-      plot.background  = element_rect(fill = "#F0EBC4", color = NA),
-      panel.background = element_rect(fill = "#F0EBC4", color = NA),
+      plot.background  = element_rect(fill = "#FDF9D8", color = NA),
+      panel.background = element_rect(fill = "#FDF9D8", color = NA),
       plot.title = element_text(hjust = 0.5, size = 20),
       axis.text.x = element_text(size = 15, face = "bold"),
       axis.ticks.y = element_blank(),
@@ -177,8 +179,8 @@ ui <- page_navbar(
     base_font  = font_google("Inter Tight")
   ),
   header = tagList(
-    tags$style("h3 {font-weight:800; font-size:1.2em; margin-bottom:10px;}"),
-    tags$style("h4 {font-weight:300; font-size:1.1em;}")
+    tags$style("h3 {font-weight: bolder; font-size: 1.2em; margin-bottom: 10px;}"),
+    tags$style("h4 {font-weight: 200; font-size: 1.1em;}")
   ),
   
   # -------- Athlete Profile --------
@@ -186,52 +188,68 @@ ui <- page_navbar(
             fluidRow(
               column(2,
                        div(
-                         style = "background: #841617; color: white; padding: 20px;
-                     border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.5);",
+                         style = "background: #FDF9D8; color: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.5);",
                          tags$div(
-                           style = "color: white; margin-bottom: 15px;",
+                           style = "color: #323232; margin-bottom: 15px;",
                            selectInput("athleteName", "Select Athlete:",
                                        choices = unique(athlete_choices$display_name))
                          ),
                          tags$div(
-                           style = "text-align: center;",
-                           imageOutput("headshot", height = "auto")
-                         ),
+                             style = "text-align: center;",
+                             imageOutput("headshot", height = "auto")
+                             ),
                          br(),
-                         h4("Position:", style = "color: white;"),
-                         tags$h3(style = "color: white;", textOutput("athletePos",    container = span)),
-                         h4("Level:",    style = "color: white;"),
-                         tags$h3(style = "color: white;", textOutput("athleteLevel",  container = span)),
-                         h4("Body Weight:", style = "color: white;"),
-                         tags$h3(style = "color: white;", textOutput("athleteBW",     container = span))
-                       )
+                           h4("Playing Level:", style = "color: #323232;"),
+                           tags$h3(style = "color: #841617;", textOutput("athleteLevel", container = span)),
+                           h4("Position:", style = "color: #323232;"),
+                           tags$h3(style = "color: #841617;", textOutput("athletePos", container = span)),
+                           h4("Body Weight:", style = "color: #323232;"),
+                           tags$h3(style = "color: #841617;", textOutput("athleteBW", container = span))
+                     )
               ),
               column(4,
                      div(
-                       style = "background: #F0EBC4; padding: 10px; border-radius: 8px;",
+                       style = "background: #FDF9D8; padding: 5px; border-radius: 8px;",
                        div(style = "text-align: center;",
-                           h3("Performance Metrics", style = "color: #323232;"),
-                           div(
-                             style = "background: #323232; padding: 7px; border-radius: 10px;",
-                           h4("Recorded Velocity", style = "color: #F0EBC4;"),
-                           tags$h3(style = "color: #F0EBC4;", textOutput("athleteVeloR", container = span)),
-                           h4("Predicted Velocity", style = "color: #F0EBC4;"),
-                           tags$h3(style = "color: #F0EBC4;", textOutput("athleteVeloP", container = span))),
-                           h4("Absolute Power", style = "color: #323232;"),
-                           tags$h3(style = "color: #841617;", textOutput("athleteIMTP", container = span)),
-                           h4("Ballistic Power", style = "color: #323232;"),
-                           tags$h3(style = "color: #841617;", textOutput("athleteCMJ", container = span)),
-                           h4("Concentric Power", style = "color: #323232;"),
-                           tags$h3(style = "color: #841617;", textOutput("athleteSJ", container = span)),
-                           plotOutput("jumpHeightChart", height = "90px"),
-                           plotOutput("mrsiChart",       height = "90px"),
-                           plotOutput("relPowerChart",   height = "90px")
+                           h3("Stength Metrics", style = "color: #323232;"),
+                           h4("Isometric Mid-Thigh Pull: Absolute Power", style = "color: #323232;"),
+                           tags$h3(style = "color: #841617;", textOutput("athleteIMTP")),
+                           h4("Countermovement Jump: Ballistic Power", style = "color: #323232;"),
+                           tags$h3(style = "color: #841617;", textOutput("athleteCMJ")),
+                           h4("Squat Jump: Concentric Power", style = "color: #323232;"),
+                           tags$h3(style = "color: #841617;", textOutput("athleteSJ")))
+                       ),
+                     br(),
+                     div(
+                       style = "background: #FDF9D8; padding: 5px; border-radius: 8px;",
+                       div(
+                         style = "text-align: center;",
+                       h3("CMJ Rating", style = "color: #323232;"),
+                       plotOutput("jumpHeightChart", height = "90px"),
+                       plotOutput("mrsiChart",       height = "90px"),
+                       plotOutput("relPowerChart",   height = "90px")
                        )
+                     ),
+                     br(),
+                     div(
+                       style = "background: #841617; padding: 5px; border-radius: 8px;",
+                       div(style = "text-align: center;",
+                           h3("Velocity Metrics", style = "color: #FDF9D8;"),
+                           fluidRow(
+                             column(6,
+                                    h4("Recorded Velocity", style = "color: #FDF9D8;"),
+                                    tags$h3(style = "color: #f0f0f0;", textOutput("athleteVeloR"))),
+                             column(6,
+                                    h4("Predicted Velocity", style = "color: #FDF9D8;"),
+                                    tags$h3(style = "color: #f0f0f0;", textOutput("athleteVeloP"))),
+                           ),
+                           h3("Recomendation: Not Available", style = "color: #FDF9D8")
+                       ),
                      )
               ),
               column(6,
                      div(
-                       style = "background: #F0EBC4; padding: 10px; border-radius: 8px;",
+                       style = "background: #FDF9D8; padding: 10px; border-radius: 8px;",
                        div(style = "text-align: center;",
                            fluidRow(
                              div(style = "display: inline-block; width: 45%; margin: 10px; color: #323232;",
@@ -243,8 +261,12 @@ ui <- page_navbar(
                                                 choices = NULL, multiple = TRUE)
                              )
                            ),
-                           plotOutput("radarPlot", width = '100%', height = "500px")
-                       )
+                           br(),
+                           plotOutput("radarPlot", width = '100%', height = "510px")
+                       ),
+                       br(),
+                       br(),
+                       br()
                      )
               )
             )
@@ -254,7 +276,7 @@ ui <- page_navbar(
   nav_panel("Team Report",
             fluidRow(
               column(4,
-                     div(style = "background: #F0EBC4; padding: 10px; border-radius: 8px; color: #323232",
+                     div(style = "background: #FDF9D8; padding: 10px; border-radius: 8px; color: #323232",
                          selectInput(
                            inputId = "testSelect",
                            label   = "Test Type:",
@@ -269,7 +291,7 @@ ui <- page_navbar(
                      )
               ),
               column(4,
-                     div(style = "background: #F0EBC4; padding: 10px; border-radius: 8px; color: #323232",
+                     div(style = "background: #FDF9D8; padding: 10px; border-radius: 8px; color: #323232",
                          selectInput(
                            inputId = "PositionFilter",
                            label   = "Position:",
@@ -281,7 +303,7 @@ ui <- page_navbar(
                      )
               ),
               column(4,
-                     div(style = "background: #F0EBC4; padding: 10px; border-radius: 8px; color: #323232",
+                     div(style = "background: #FDF9D8; padding: 10px; border-radius: 8px; color: #323232",
                          selectInput(
                            inputId = "levelFilter",
                            label   = "Playing Level:",
@@ -469,7 +491,7 @@ server <- function(input, output, session) {
     final_title <- paste("IQR Chart for", athlete_values$display_name, compare_title)
     
     op <- par(mar = c(1, 1, 1, 1))
-    old_par <- par(bg = "#F0EBC4")
+    old_par <- par(bg = "#FDF9D8")
     fmsb::radarchart(
       radar_data,
       axistype = 1,
