@@ -230,19 +230,18 @@ ui <- page_navbar(
                        div(style = "text-align: center;",
                            h3("Velocity Metrics", style = "color: #323232;"),
                            fluidRow(
-                             # column(1),
-                             column(6,
+                             column(1),
+                             column(5,
                                     div(
-                                      style = "background: #323232; border-radius: 15px;",
+                                      style = "background: #323232; border-radius: 8px;",
                                       h4("Recorded Velocity", style = "color: #FDF9D8;"),
                                       tags$h3(style = "color: #FDF9D8;", textOutput("athleteVeloR")))),
-                             # column(2),
-                             column(6,
+                             column(5,
                                     div(
-                                      style = "background: #841617; border-radius: 15px;",
+                                      style = "background: #841617; border-radius: 8px;",
                                       h4("Predicted Velocity", style = "color: #FDF9D8;"),
                                       tags$h3(style = "color: #FDF9D8;", textOutput("athleteVeloP")))),
-                             # column(1)
+                             column(1)
                            ),
                            h4("Recommendation: ", textOutput("athleteRec", container = span), style = "color: #323232;")                       ),
                      ),
@@ -301,7 +300,6 @@ ui <- page_navbar(
                        ),
                        br(),
                        br(),
-                       br()
                      )
               )
             )
@@ -431,9 +429,9 @@ server <- function(input, output, session) {
     }
     
     if (actual > predictedVelo()) {
-      "Strength Focus Needed"
+      "Strength Training Needed"
     } else {
-      "Skill Specific Focus Needed"
+      "Skill Specific Training Needed"
     }
   })
   
