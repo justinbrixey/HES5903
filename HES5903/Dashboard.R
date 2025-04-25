@@ -222,13 +222,17 @@ ui <- page_navbar(
                              imageOutput("headshot", height = "auto")
                              ),
                          br(),
+                         h4("Name:", style = "color: #323232;"),
+                         tags$h3(style = "color: #841617;", textOutput("athleteName", container = span)),
                            h4("Playing Level:", style = "color: #323232;"),
                            tags$h3(style = "color: #841617;", textOutput("athleteLevel", container = span)),
                            h4("Position:", style = "color: #323232;"),
                            tags$h3(style = "color: #841617;", textOutput("athletePos", container = span)),
                            h4("Body Weight:", style = "color: #323232;"),
                            tags$h3(style = "color: #841617;", textOutput("athleteBW", container = span))
-                     )
+                     ),
+                     br(),
+                     br(),
               ),
               column(4,
                      div(
@@ -291,6 +295,7 @@ ui <- page_navbar(
                      div(
                        style = "background: #FDF9D8; padding: 10px; border-radius: 8px;",
                        div(style = "text-align: center;",
+                           h3("Radar Plot", style = "color: #323232;"),
                            fluidRow(
                              div(style = "display: inline-block; width: 45%; margin: 10px; color: #323232;",
                                  selectizeInput("comparisonPlayingLevels", "Compare by Playing Level:",
@@ -301,11 +306,10 @@ ui <- page_navbar(
                                                 choices = NULL, multiple = TRUE)
                              )
                            ),
-                           br(),
                            plotOutput("radarPlot", width = '100%', height = "510px")
                        ),
                        br(),
-                       br(),
+                       br()
                      )
               )
             )
@@ -378,6 +382,11 @@ server <- function(input, output, session) {
     list(src = paste0("Data/Recruit.jpg"),
          height = "250")
   }, deleteFile = FALSE)
+  
+  output$athleteName <- renderText({
+    req(selected_player())
+    paste(selected_player()$display_name)
+  })
   
   output$athletePos <- renderText({
     req(selected_player())
@@ -568,7 +577,7 @@ server <- function(input, output, session) {
     
     compare_title <- if(length(series_labels) > 1)
       paste("vs", paste(series_labels[-1], collapse = ", ")) else ""
-    final_title <- paste("IQR Chart for", athlete_values$display_name, compare_title)
+    final_title <- paste("IQR for", athlete_values$display_name, compare_title)
     
     op <- par(mar = c(1, 1, 1, 1))
     old_par <- par(bg = "#FDF9D8")
